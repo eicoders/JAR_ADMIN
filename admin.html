@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ADMIN - Jar Scheduler PRO</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+
+    <style>
+        /* --- CORE THEME & VARIABLES --- */
+        :root {
+            --color-primary: #FF5733;
+            --color-bg-deep: #050505;
+            --color-bg-card: #121212;
+            --color-border: #2a2a2a;
+            --color-text: #e5e7eb;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--color-bg-deep);
+            color: var(--color-text);
+            padding: 2rem;
+            background-image: radial-gradient(circle at top right, rgba(255, 87, 51, 0.05), transparent 40%);
+            min-height: 100vh;
+        }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--color-bg-deep); }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--color-primary); }
+
+        .container { max-width: 700px; margin: 0 auto; }
+        
+        /* CLEAN PROFESSIONAL CARD STYLE (No RGB) */
+        .card {
+            background-color: var(--color-bg-card);
+            padding: 2rem;
+            border-radius: 20px;
+            margin-bottom: 2rem;
+            border: 1px solid var(--color-border);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Input Fields */
+        .input-field {
+            background-color: #0a0a0a;
+            border: 1px solid #333;
+            color: white;
+            padding: 0.85rem 1rem;
+            border-radius: 12px;
+            width: 100%;
+            margin-top: 8px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .input-field:focus {
+            outline: none;
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 3px rgba(255, 87, 51, 0.2);
+        }
+
+        /* Buttons */
+        .btn { padding: 0.85rem 1.5rem; border-radius: 12px; font-weight: 700; width: 100%; margin-top: 1.5rem; cursor: pointer; transition: all 0.2s; }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--color-primary), #c0392b);
+            color: white; border: none;
+            box-shadow: 0 4px 15px rgba(255, 87, 51, 0.2);
+        }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255, 87, 51, 0.3); }
+
+        /* Member List Items */
+        .member-item { display: flex; align-items: center; padding: 0.75rem; background-color: #1a1a1a; margin-bottom: 0.75rem; border-radius: 12px; gap: 12px; cursor: grab; border: 1px solid var(--color-border); transition: all 0.2s; }
+        .member-item:hover { border-color: #555; background-color: #222; }
+        .member-item.dragging { opacity: 0.5; border: 1px dashed var(--color-primary); background: #0a0a0a; }
+        .del-btn { background: #333; color: #EF4444; border: none; height: 36px; width: 36px; border-radius: 10px; font-weight: bold; font-size: 1.2rem; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
+        .del-btn:hover { background: #EF4444; color: white; }
+        .grip-icon { color: #666; font-size: 1.4rem; user-select: none; cursor: grab; }
+
+        /* Toggle Switch Style */
+        .toggle-checkbox:checked { right: 0; border-color: #ef4444; }
+        .toggle-checkbox:checked + .toggle-label { background: linear-gradient(to right, #ef4444, #c0392b); }
+
+        /* Login View */
+        #login-view { height: 80vh; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
+
+        /* --- RGB ANIMATION (ONLY FOR PROFILE & LOGOUT) --- */
+        @property --angle { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
+        @keyframes rotate-rgb { to { --angle: 360deg; } }
+        
+        .rgb-animated-border { position: relative; z-index: 1; }
+        .rgb-animated-border::before, .rgb-animated-border::after {
+            content: ''; position: absolute; z-index: -1; inset: -3px;
+            background: conic-gradient(from var(--angle), #ff0000, #00ff00, #0000ff, #ff0000);
+            animation: rotate-rgb 4s linear infinite; border-radius: inherit;
+        }
+        .rgb-animated-border::after { filter: blur(10px); opacity: 0.7; }
+        .rgb-inner-bg { background: var(--color-bg-card); border-radius: inherit; height: 100%; width: 100%; position: relative; z-index: 2; }
+
+
+        /* Profile Icon */
+        .profile-icon-container { width: 54px; height: 54px; border-radius: 50%; cursor: pointer; transition: transform 0.2s; }
+        .profile-icon-container:hover { transform: scale(1.05); }
+        .profile-img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; border: 3px solid var(--color-bg-deep); }
+
+        /* Popup Menu */
+        .profile-popup {
+            position: absolute; right: 0; top: 70px; width: 280px;
+            background: var(--color-bg-card); border: 1px solid var(--color-border);
+            border-radius: 16px; padding: 1.5rem; z-index: 50;
+            box-shadow: 0 20px 40px -10px rgba(0,0,0,0.6);
+            transform-origin: top right; transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            opacity: 0; pointer-events: none; transform: scale(0.9) translateY(-10px);
+        }
+        .profile-popup.active { opacity: 1; pointer-events: auto; transform: scale(1) translateY(0); }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0; z-index: 100;
+            background: rgba(0,0,0,0.8); backdrop-filter: blur(5px);
+            display: flex; justify-content: center; align-items: center;
+            opacity: 0; pointer-events: none; transition: opacity 0.3s;
+        }
+        .modal-overlay.active { opacity: 1; pointer-events: auto; }
+        .modal-box {
+            background: #111; border: 1px solid #333;
+            padding: 2.5rem; border-radius: 20px; max-width: 400px; text-align: center;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.8);
+            transform: scale(0.9); transition: transform 0.3s;
+        }
+        .modal-overlay.active .modal-box { transform: scale(1); }
+    </style>
+</head>
+<body>
+
+    <div id="login-view">
+        <div class="card" style="max-width: 450px; width: 100%; text-align: center; padding: 3rem; border-color: #333;">
+            <h1 class="text-4xl font-extrabold text-white mb-2">Jar Admin Panel</h1>
+            <p class="text-gray-500 mb-10 text-lg">System Access Required</p>
+            
+            <button onclick="adminLogin()" class="btn bg-white text-black hover:bg-gray-200 transition flex items-center justify-center gap-4 text-lg py-4">
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="24">
+                Sign in with Google
+            </button>
+        </div>
+    </div>
+
+    <div id="dashboard-view" style="display: none;" class="container">
+        
+        <div class="flex justify-between items-center mb-8 pt-4 relative">
+            <div>
+                <h1 class="text-3xl font-extrabold text-white tracking-tight">Dashboard</h1>
+                <p class="text-gray-500 mt-1 font-medium">Manage your system</p>
+            </div>
+
+            <div class="relative z-50" id="profile-dropdown-container">
+                <div id="profile-trigger" class="rgb-animated-border profile-icon-container">
+                    <img id="user-photo-display" src="https://via.placeholder.com/60" alt="Profile" class="profile-img rgb-inner-bg">
+                </div>
+
+                <div id="profile-popup" class="profile-popup">
+                    <div class="text-center border-b border-gray-800 pb-5 mb-5">
+                        <img id="popup-user-photo" src="" class="w-16 h-16 rounded-full mx-auto mb-3 border-2 border-gray-700">
+                        <p id="popup-username" class="font-bold text-lg text-white truncate">Loading...</p>
+                        <p id="popup-email" class="text-sm text-gray-400 truncate font-medium">...</p>
+                    </div>
+                    <div class="mb-6 text-center bg-[#0a0a0a] p-3 rounded-xl border border-[#222]">
+                         <p class="text-xs text-gray-500 uppercase font-bold tracking-wider mb-1">YOUR UID</p>
+                         <p id="user-uid" class="text-yellow-500 select-all font-mono text-sm break-all">...</p>
+                    </div>
+                    <button id="logout-intent-btn" class="btn bg-red-900/20 text-red-500 hover:bg-red-900/40 hover:text-white transition w-full mt-0">
+                        Secure Logout
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="flex items-center gap-3 mb-6 border-b border-gray-800 pb-4">
+                <div class="h-6 w-1.5 bg-orange-500 rounded-full"></div>
+                <h2 class="text-xl font-bold text-white">Scheduler Settings</h2>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-sm font-bold text-gray-400 ml-1">Days Per Turn</label>
+                    <input type="number" id="days-per-turn" class="input-field" placeholder="E.g., 3">
+                </div>
+                <div>
+                        <label class="block text-sm font-bold text-gray-400 ml-1">Cycle Start Date</label>
+                    <input type="text" id="start-date" class="input-field" placeholder="Select Date" onfocus="(this.type='date')" onblur="(this.value ? this.type='date' : this.type='text')">
+                </div>
+            </div>
+
+            <h3 class="text-md font-bold mt-8 mb-4 flex items-center gap-2 text-gray-300">
+                Member List
+                <span class="text-xs bg-gray-800 text-gray-400 px-2 py-1 rounded-full border border-gray-700" id="member-count">0</span>
+            </h3>
+            <div id="members-list" class="space-y-2"></div>
+            
+            <div class="flex gap-4 mt-6">
+                <button onclick="addMemberInput()" class="btn bg-gray-800 hover:bg-gray-700 text-white flex-1" style="margin-top:0;">+ Add Member</button>
+                <button id="save-btn" class="btn btn-primary flex-[2]" style="margin-top:0;">Save Changes</button>
+            </div>
+            <p id="settings-msg" class="text-center mt-4 font-medium text-sm text-green-400"></p>
+        </div>
+
+        <div class="card" style="border: 1px solid #ef4444;">
+            <div class="flex items-center gap-3 mb-2">
+                    <div class="h-6 w-1.5 bg-red-600 rounded-full"></div>
+                <h2 class="text-xl font-bold text-red-500">Global Site Alert</h2>
+            </div>
+            <p class="text-sm text-gray-400 mb-6 ml-5">Activating this will block the main website view.</p>
+            
+            <div class="flex items-center justify-between mb-6 bg-[#0a0a0a] p-4 rounded-xl border border-[#333]">
+                <span class="text-white font-bold text-md">Alert Mode Active?</span>
+                <div class="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in">
+                    <input type="checkbox" name="toggle" id="alert-toggle" class="toggle-checkbox absolute block w-7 h-7 rounded-full bg-white border-2 appearance-none cursor-pointer" style="top: -2px;"/>
+                    <label for="alert-toggle" class="toggle-label block overflow-hidden h-7 rounded-full bg-gray-700 cursor-pointer"></label>
+                </div>
+            </div>
+
+            <label class="block text-sm font-bold text-gray-400 ml-1">Alert Message Content</label>
+            <textarea id="alert-message" rows="3" class="input-field resize-none" placeholder="E.g., Site is under maintenance. Please wait..."></textarea>
+            
+            <button id="save-alert-btn" class="btn bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-900/20">Update Live Alert Status</button>
+            <p id="alert-msg" class="text-center mt-4 font-medium text-sm text-green-400"></p>
+        </div>
+    </div>
+
+    <div id="logout-modal" class="modal-overlay">
+        <div class="modal-box">
+             <div class="text-red-500 mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+             </div>
+            <h3 class="text-2xl font-extrabold text-white mb-3">Confirm Logout</h3>
+            <p class="text-gray-400 mb-8 leading-relaxed">Are you sure you want to end your secure session?</p>
+            <div class="flex gap-4 justify-center">
+                <button onclick="closeLogoutModal()" class="px-6 py-3 rounded-xl bg-gray-800 text-white font-bold hover:bg-gray-700 transition flex-1">Cancel</button>
+                <button id="final-logout-btn" class="px-6 py-3 rounded-xl bg-red-600 text-white font-bold hover:bg-red-700 transition flex-1 rgb-inner-bg">Yes, Logout</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyCG9w-pUJq9FopmIUUPLUVMc03P84Rblgw",
+            authDomain: "jar-ledger.firebaseapp.com",
+            databaseURL: "https://jar-ledger-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "jar-ledger",
+            storageBucket: "jar-ledger.firebasestorage.app",
+            messagingSenderId: "915159281904",
+            appId: "1:915159281904:web:4f3d5c940a03c4b525d235",
+            measurementId: "G-YB740FJBBG"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        const auth = firebase.auth();
+        const settingsRef = db.ref('borewell_settings');
+        const alertRef = db.ref('site_alert');
+
+        // References
+        const loginView = document.getElementById('login-view');
+        const dashboardView = document.getElementById('dashboard-view');
+        const profileTrigger = document.getElementById('profile-trigger');
+        const profilePopup = document.getElementById('profile-popup');
+        const logoutIntentBtn = document.getElementById('logout-intent-btn');
+        const logoutModal = document.getElementById('logout-modal');
+        const finalLogoutBtn = document.getElementById('final-logout-btn');
+
+        // Auth Logic
+        function adminLogin() {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            auth.signInWithPopup(provider).catch(e => alert(e.message));
+        }
+
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                loginView.style.display = 'none';
+                dashboardView.style.display = 'block';
+                
+                document.getElementById('user-uid').innerText = user.uid;
+                document.getElementById('popup-username').innerText = user.displayName || 'Admin';
+                document.getElementById('popup-email').innerText = user.email;
+                const photoUrl = user.photoURL || 'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/person.svg';
+                document.getElementById('user-photo-display').src = photoUrl;
+                document.getElementById('popup-user-photo').src = photoUrl;
+
+                loadData();
+                closeLogoutModal();
+            } else {
+                loginView.style.display = 'flex';
+                dashboardView.style.display = 'none';
+                profilePopup.classList.remove('active');
+            }
+        });
+
+        // Popup & Modal Logic
+        profileTrigger.addEventListener('click', (e) => { e.stopPropagation(); profilePopup.classList.toggle('active'); });
+        window.addEventListener('click', () => { if (profilePopup.classList.contains('active')) profilePopup.classList.remove('active'); });
+        profilePopup.addEventListener('click', (e) => e.stopPropagation());
+
+        logoutIntentBtn.addEventListener('click', () => {
+            profilePopup.classList.remove('active');
+            logoutModal.classList.add('active');
+            finalLogoutBtn.classList.add('rgb-animated-border');
+        });
+
+        function closeLogoutModal() {
+            logoutModal.classList.remove('active');
+            setTimeout(() => finalLogoutBtn.classList.remove('rgb-animated-border'), 300);
+        }
+
+        finalLogoutBtn.addEventListener('click', () => { auth.signOut(); closeLogoutModal(); });
+
+        // Data Logic
+        function loadData() {
+            settingsRef.once('value').then((snapshot) => {
+                const data = snapshot.val();
+                document.getElementById('members-list').innerHTML = ''; 
+                let count = 0;
+                if (data) {
+                    document.getElementById('days-per-turn').value = data.daysPerTurn || '';
+                    document.getElementById('start-date').value = data.startDate || '';
+                    if (data.startDate) document.getElementById('start-date').type = 'date';
+                    if(data.members) { data.members.forEach(name => addMemberInput(name)); count = data.members.length; }
+                    else { addMemberInput(); }
+                } else { if(document.getElementById('members-list').children.length === 0) addMemberInput(); }
+                document.getElementById('member-count').innerText = count;
+            });
+            alertRef.once('value').then((snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    document.getElementById('alert-toggle').checked = data.isActive || false;
+                    document.getElementById('alert-message').value = data.message || '';
+                }
+            });
+        }
+
+        // Drag & Drop
+        let draggedItem = null;
+        function handleDragStart(e) { draggedItem = this; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/html', this.innerHTML); setTimeout(() => this.classList.add('dragging'), 0); }
+        function handleDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; const target = e.target.closest('.member-item'); if (target && target !== draggedItem) { const rect = target.getBoundingClientRect(); const next = (e.clientY - rect.top) / rect.height > 0.5; target.parentNode.insertBefore(draggedItem, next ? target.nextSibling : target); }}
+        function handleDragEnd() { this.classList.remove('dragging'); draggedItem = null; updateMemberCount(); }
+
+        function addMemberInput(val = '') {
+            const list = document.getElementById('members-list');
+            const div = document.createElement('div');
+            div.className = 'member-item';
+            div.setAttribute('draggable', 'true');
+            div.addEventListener('dragstart', handleDragStart); div.addEventListener('dragover', handleDragOver); div.addEventListener('dragend', handleDragEnd);
+            div.innerHTML = `<span class="grip-icon">☰</span><input type="text" value="${val}" class="input-field" style="margin:0; border:none; background: transparent; padding: 0.5rem;" placeholder="Member Name"><button onclick="this.parentElement.remove(); updateMemberCount();" class="del-btn">×</button>`;
+            list.appendChild(div);
+            updateMemberCount();
+        }
+        function updateMemberCount() { document.getElementById('member-count').innerText = document.querySelectorAll('.member-item').length; }
+
+        // Save
+        function showMsg(elementId, text, isError = false) {
+            const msg = document.getElementById(elementId);
+            msg.textContent = text;
+            msg.className = isError ? "text-center mt-4 font-medium text-sm text-red-500" : "text-center mt-4 font-medium text-sm text-green-400";
+            setTimeout(() => msg.textContent = '', 3000);
+        }
+
+        document.getElementById('save-btn').addEventListener('click', () => {
+            if (!auth.currentUser) return alert("Please Login First!");
+            const days = parseInt(document.getElementById('days-per-turn').value);
+            const start = document.getElementById('start-date').value;
+            const members = Array.from(document.querySelectorAll('.member-item input[type="text"]')).map(i => i.value.trim()).filter(i => i);
+            if (!days || !start || members.length === 0) return showMsg('settings-msg', "Please fill all fields.", true);
+
+            settingsRef.set({ daysPerTurn: days, startDate: start, members: members })
+                .then(() => showMsg('settings-msg', "Settings Saved!"))
+                .catch(e => showMsg('settings-msg', e.message, true));
+        });
+
+        document.getElementById('save-alert-btn').addEventListener('click', () => {
+            if (!auth.currentUser) return alert("Please Login First!");
+            alertRef.set({ isActive: document.getElementById('alert-toggle').checked, message: document.getElementById('alert-message').value })
+                .then(() => showMsg('alert-msg', "Alert Updated!"))
+                .catch(e => showMsg('alert-msg', e.message, true));
+        });
+    </script>
+</body>
+</html>
